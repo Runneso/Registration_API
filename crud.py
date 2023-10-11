@@ -4,6 +4,7 @@ from sqlalchemy import select
 from hashlib import sha256
 
 
+
 class CRUD:
     async def get_all_users(self, async_session: async_sessionmaker[AsyncSession]):
         async with async_session() as session:
