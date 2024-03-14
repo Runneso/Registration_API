@@ -1,0 +1,5 @@
+# IDE trash
+.venv
+
+# env
+.env
