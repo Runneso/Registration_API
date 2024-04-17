@@ -26,7 +26,7 @@ Base: DeclarativeBase = declarative_base()
 
 
 def get_postgres_async_session_maker() -> async_sessionmaker[AsyncSession]:
-    async_session_maker: async_sessionmaker[AsyncSession] = async_sessionmaker(bind=engine)
+    async_session_maker: async_sessionmaker[AsyncSession] = async_sessionmaker(bind=engine, expire_on_commit=False)
     return async_session_maker
 
 

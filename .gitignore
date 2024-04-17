@@ -1,0 +1,4 @@
+# IDEA trash
+venv
+.idea
+logging.log

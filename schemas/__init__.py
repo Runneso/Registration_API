@@ -1,2 +1,5 @@
 from .pydantic_schemas import (GetUser,
-                               CreateUser)
+                               CreateUser,
+                               UpdateUser,
+                               UpdatePassword,
+                               Token)
