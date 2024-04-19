@@ -2,6 +2,3 @@
 venv
 .idea
 logging.log
-
-# ENV
-.env

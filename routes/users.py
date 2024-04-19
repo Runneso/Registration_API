@@ -4,15 +4,18 @@ from schemas import (GetUser,
                      UpdatePassword,
                      Token)
 from database import get_async_session, CRUD
+from routes.responses import load_responses, Responses
+from routes.limiter import limiter
 
 from typing import (List,
                     Annotated)
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 oauth2_scheme = OAuth2PasswordBearer("/api/v1/users/signIn")
+responses: Responses = load_responses()
 users: APIRouter = APIRouter(prefix="/users")
 db: CRUD = CRUD()
 
@@ -21,25 +24,11 @@ db: CRUD = CRUD()
     "/getUsers",
     response_model=List[GetUser],
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "id": 0,
-                            "username": "Alex",
-                            "email": "alex@gmail.com",
-                            "createdAt": "2024-04-17T13:07:25.709Z"
-                        }
-                    ]
-                }
-            },
-            "model": List[GetUser],
-        },
-    }
+    responses=responses.users.get_users
 )
-async def get_users(session: AsyncSession = Depends(get_async_session)):
+async def get_users(
+        session: AsyncSession = Depends(get_async_session)
+):
     return await db.get_users_orm(session)
 
 
@@ -47,29 +36,11 @@ async def get_users(session: AsyncSession = Depends(get_async_session)):
     "/createUser",
     response_model=Token,
     status_code=status.HTTP_201_CREATED,
-    responses={
-        status.HTTP_201_CREATED: {
-            "content": {
-                "application/json": {
-                    "example": {
-                        "access_token": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-                        "token_type": "bearer"
-                    }
-                }
-            },
-            "model": Token,
-        },
-        status.HTTP_409_CONFLICT: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Conflict user data!"}
-                }
-            },
-            "description": "Conflict Error",
-        },
-    }
+    responses=responses.users.create_user
 )
+@limiter.limit("5/minute")
 async def create_user(
+        request: Request,
         user_data: CreateUser,
         session: AsyncSession = Depends(get_async_session)
 ):
@@ -81,37 +52,11 @@ async def create_user(
     "/signIn",
     response_model=Token,
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "content": {
-                "application/json": {
-                    "example": {
-                        "access_token": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-                        "token_type": "bearer"
-                    }
-                }
-            },
-            "model": Token,
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid password!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "User doesnt exist!"}
-                }
-            },
-            "description": "Not found Error",
-        }
-    }
+    responses=responses.users.sign_in
 )
+@limiter.limit("5/minute")
 async def sign_in(
+        request: Request,
         user_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         session: AsyncSession = Depends(get_async_session)
 ):
@@ -123,29 +68,7 @@ async def sign_in(
     "/myProfile",
     response_model=GetUser,
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 0,
-                        "username": "Alex",
-                        "email": "alex@gmail.com",
-                        "createdAt": "2024-04-17T13:07:25.709Z"
-                    }
-                }
-            },
-            "model": GetUser,
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid JWT token!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        }
-    }
+    responses=responses.users.my_profile
 )
 async def my_profile(
         token: Annotated[str, Depends(oauth2_scheme)],
@@ -158,29 +81,7 @@ async def my_profile(
     "/updateProfile",
     response_model=GetUser,
     status_code=status.HTTP_201_CREATED,
-    responses={
-        status.HTTP_201_CREATED: {
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 0,
-                        "username": "Alex",
-                        "email": "alex@gmail.com",
-                        "createdAt": "2024-04-17T13:07:25.709Z"
-                    }
-                }
-            },
-            "model": GetUser,
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid JWT token!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        }
-    },
+    responses=responses.users.update_profile
 )
 async def update_profile(
         token: Annotated[str, Depends(oauth2_scheme)],
@@ -194,19 +95,7 @@ async def update_profile(
     "/updatePassword",
     response_model=None,
     status_code=status.HTTP_201_CREATED,
-    responses={
-        status.HTTP_201_CREATED: {
-            "content": None,
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid JWT token!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        },
-    }
+    responses=responses.users.update_password
 )
 async def update_password(
         token: Annotated[str, Depends(oauth2_scheme)],
@@ -220,26 +109,7 @@ async def update_password(
     "/myFriends",
     response_model=List[int],
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "content": {
-                "application/json": {
-                    "example": {
-                        1,
-                    }
-                }
-            },
-            "model": List[int],
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid JWT token!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        }
-    }
+    responses=responses.users.my_friends
 )
 async def my_friends(
         token: Annotated[str, Depends(oauth2_scheme)],
@@ -252,42 +122,7 @@ async def my_friends(
     "/addFriend",
     response_model=List[int],
     status_code=status.HTTP_201_CREATED,
-    responses={
-        status.HTTP_201_CREATED: {
-            "content": {
-                "application/json": {
-                    "example": {
-                        1, 2
-                    }
-                }
-            },
-            "model": List[int],
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid JWT token!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Friend not found!"}
-                }
-            },
-            "description": "Not found Error",
-        },
-        status.HTTP_409_CONFLICT: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Friend already in user`s friends!"}
-                }
-            },
-            "description": "Conflict Error",
-        }
-    }
+    responses=responses.users.add_friend
 )
 async def add_friend(
         token: Annotated[str, Depends(oauth2_scheme)],
@@ -301,35 +136,7 @@ async def add_friend(
     "/removeFriend",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_204_NO_CONTENT: {
-            "content": None,
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid JWT token!"}
-                }
-            },
-            "description": "Unauthorized Error",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Friend not found!"}
-                }
-            },
-            "description": "Not found Error",
-        },
-        status.HTTP_409_CONFLICT: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "No same user in user`s friends!"}
-                }
-            },
-            "description": "Conflict Error",
-        }
-    }
+    responses=responses.users.remove_friend
 )
 async def remove_friend(
         token: Annotated[str, Depends(oauth2_scheme)],

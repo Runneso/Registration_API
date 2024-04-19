@@ -1,0 +1,48 @@
+version: '3.9'
+
+volumes:
+  users_pgdata:
+
+
+networks:
+  users_network:
+
+
+services:
+  users:
+    build:
+      context: .
+    restart: always
+    ports:
+      - "8000:8000"
+    expose:
+      - 80
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=users
+      - POSTGRES_PASSWORD=secret
+    depends_on:
+      - users_postgres
+    networks:
+      - users_network
+    command: bash -c "python main.py"
+    container_name: users
+
+  users_postgres:
+    image: postgres:alpine
+    restart: always
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=users
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - users_pgdata:/var/lib/postgresql/data/
+    networks:
+      - users_network
+    container_name: users_postgres
+
